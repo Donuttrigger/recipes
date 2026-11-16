@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Our Recipes</title>
+  <meta name="theme-color" content="#c8553d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Recipes">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main id="view" aria-live="polite"><div class="center muted">Loading…</div></main>
+  <nav id="tabs" class="tabs" hidden>
+    <a href="#/" data-tab="home"><span class="ti">📖</span>Recipes</a>
+    <a href="#/new" data-tab="new"><span class="ti">➕</span>Add</a>
+    <a href="#/shop" data-tab="shop"><span class="ti">🛒</span>Shopping<span id="shop-badge" class="badge" hidden></span></a>
+  </nav>
+  <div id="toast" class="toast" hidden></div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

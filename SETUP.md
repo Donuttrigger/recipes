@@ -1,0 +1,66 @@
+# Setting up Our Recipes
+
+This takes about 10 minutes. It's free, with no credit card needed.
+
+You do **Part 1** (the database). Then send Claude two pieces of text from it, and Claude does the rest.
+
+---
+
+## Part 1: Create the free database (Supabase)
+
+Supabase stores your recipes, photos and shopping list so both phones see the same thing.
+
+1. Go to **https://supabase.com** and tap **Start your project**.
+2. Choose **Continue with GitHub** (you already have a GitHub account), and approve.
+3. Tap **New project**.
+   - **Name:** `recipes`
+   - **Database password:** tap **Generate a password**. You won't need it again, but save it in your notes just in case.
+   - **Region:** pick the one closest to you.
+   - Tap **Create new project**. Wait a minute or two while it sets up.
+4. **Set up the tables.** In the left sidebar, tap **SQL Editor**, then tap **+ New query**.
+   Open the file `supabase-setup.sql`, copy **all** of it, paste it in, and tap **Run**.
+   You should see "Success. No rows returned".
+5. **Create your two logins.** In the left sidebar, tap **Authentication** and then **Users**.
+   Tap **Add user** → **Create new user**. Enter your email and a password, leave
+   **Auto Confirm User** ticked, and tap **Create user**. Do the same for your girlfriend's email.
+6. **Stop strangers from signing up.** Still in Authentication, open **Sign In / Providers**
+   (on some screens it's called **Providers**, under Configuration). Turn **off** "Allow new users to sign up" and tap **Save**.
+7. **Get the two bits of text Claude needs.** Tap **Project Settings** (the gear icon), then **Data API** (or **API**). Copy:
+   - **Project URL**, which looks like `https://abcdefgh.supabase.co`
+   - the **anon public** key, a long string starting with `eyJ` (it might be under "API Keys"). Don't send the `service_role` key, which is secret.
+
+   Paste both into the chat with Claude. The anon key is designed to be public, so it's safe to share.
+
+---
+
+## Part 2: Put the app online (Claude does most of this)
+
+**If you're using free GitHub Pages hosting:**
+1. Go to **https://github.com/new**.
+2. **Repository name:** `recipes`. Keep it **Public**, because free GitHub hosting needs that. Your recipes stay private, since they live in the database behind your login and only the app's code is public. Leave everything else as it is and tap **Create repository**.
+3. Tell Claude it's done. Claude uploads the app and turns on hosting.
+   Your app will be at `https://donuttrigger.github.io/recipes/`.
+
+**If you're using your own server**, see `README.md` → "Hosting it yourself".
+
+---
+
+## Part 3: Put it on both iPhones
+
+1. On the iPhone, open the app's address in **Safari** (it has to be Safari).
+2. Tap the **Share** button (the square with an arrow pointing up).
+3. Scroll down and tap **Add to Home Screen**, then tap **Add**.
+4. Open **Recipes** from the home screen and sign in.
+
+Do the same on the other iPhone. You're done! 🎉
+
+---
+
+## Using the app
+
+- **Add a recipe from a website:** tap **Add**, paste the link, and tap **Import**. Check it over, then tap **Save**.
+  A few sites block this. When that happens, type or paste the recipe in yourself.
+- **Change servings:** on a recipe, use the **− / +** buttons. All the amounts update.
+- **Shopping list:** on a recipe, tap **Add to shopping list**. Untick anything you already have.
+  Tick items off in the shop. Your girlfriend sees them ticked off on her phone too.
+- **Photos:** when adding or editing a recipe, tap **Choose photo** to take one or pick one from your library.
