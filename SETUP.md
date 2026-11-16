@@ -63,6 +63,8 @@ Do the same on the other iPhone. You're done! 🎉
 - **Add a recipe from a photo or PDF:** tap **Add**, then **Scan a photo or PDF**. Take a photo of a recipe card or cookbook page, or pick a PDF.
   For a recipe over two pages, pick both photos at once. The first scan downloads the reader, so it takes a little longer.
   Scanning isn't perfect, so check the fields before tapping **Save**.
+- **Move recipes from Recipe Keeper:** in Recipe Keeper, make a backup (Settings → Backup), then in this app tap **Add** → **Import a Recipe Keeper backup** and pick the .zip.
+  Running it again skips recipes you already have.
 - **Change servings:** on a recipe, use the **− / +** buttons. All the amounts update.
 - **Shopping list:** on a recipe, tap **Add to shopping list**. Untick anything you already have.
   Tick items off in the shop. Your girlfriend sees them ticked off on her phone too.

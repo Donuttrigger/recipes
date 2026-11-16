@@ -9,6 +9,7 @@ const UNICODE = {
 const U = Object.keys(UNICODE).join('');
 const NUM = `(?:\\d+\\s+\\d+\\/\\d+|\\d+\\s*[${U}]|\\d+\\/\\d+|\\d*\\.\\d+|\\d+|[${U}])`;
 const QTY_RE = new RegExp(`^(\\s*)(${NUM})(?:(\\s*(?:-|–|—|to)\\s*)(${NUM}))?`);
+const DASH_RE = new RegExp(`^(.*?[^\\d\\s]\\s+[-–—]\\s+)(?=${NUM})`);
 
 export function parseNum(s) {
   s = s.trim();
@@ -46,11 +47,20 @@ export function formatQty(n) {
 export function scaleIngredient(line, factor) {
   if (!line || factor === 1 || !isFinite(factor) || factor <= 0) return line;
   const m = line.match(QTY_RE);
-  if (!m) return line;
+  if (!m) {
+    // "Olive oil - 1½ tbsp" style: the amount comes after a dash
+    const d = line.match(DASH_RE);
+    if (!d) return line;
+    const at = d.index + d[1].length;
+    return line.slice(0, at) + scaleIngredient(line.slice(at), factor);
+  }
   const [all, lead, a, sep, b] = m;
   let out = lead + formatQty(parseNum(a) * factor);
   if (b) out += sep + formatQty(parseNum(b) * factor);
-  return out + line.slice(all.length);
+  // "3 cups/375g": scale the second measurement too
+  const rest = line.slice(all.length).replace(/^(\s*[a-z.]+\s*\/\s*)(\d+(?:\.\d+)?)(?=\s*(?:g|kg|ml|l|oz|lb)s?\b)/i,
+    (_, pre, n) => pre + Math.round(parseFloat(n) * factor * 10) / 10);
+  return out + rest;
 }
 
 // "Serves 4-6", "4 servings", ["4", "4 servings"], 8 -> first number found

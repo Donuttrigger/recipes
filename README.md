@@ -23,6 +23,7 @@ js/lib/scale.js         servings scaling ("1 1/2 cups" x2 -> "3 cups")
 js/lib/importer.js      reads schema.org Recipe data from a web page
 js/lib/scan.js          reads text from photos (Tesseract.js OCR) and PDFs (PDF.js), on the phone
 js/lib/textRecipe.js    splits scanned text into title, ingredients, steps, notes
+js/lib/recipeKeeper.js  reads a Recipe Keeper backup .zip (JSZip)
 js/lib/dom.js           small UI helpers (toast, bottom sheet, escaping)
 js/views/*.js           one file per screen: list, detail, form, shop, login
 supabase-setup.sql      database tables, security rules, photo storage, import function

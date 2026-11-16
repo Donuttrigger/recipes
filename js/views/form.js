@@ -1,6 +1,6 @@
 // Add or edit a recipe. New recipes can be imported from a website link.
 import { $, esc, toast, busy, foodEmoji } from '../lib/dom.js';
-import { getRecipe, saveRecipe, uploadPhoto, fetchPage } from '../db.js';
+import { store, getRecipe, saveRecipe, uploadPhoto, fetchPage } from '../db.js';
 import { extractRecipeFromHtml } from '../lib/importer.js';
 import { parseRecipeText } from '../lib/textRecipe.js';
 
@@ -34,6 +34,10 @@ export function render(view, id) {
       <p style="margin:14px 0 10px"><b>Got it on paper or in a PDF?</b> Snap the recipe card or cookbook page, or pick a PDF.</p>
       <span class="btn file-btn block" id="scanbtn">📷 Scan a photo or PDF<input id="scan" type="file" accept="image/*,application/pdf,.pdf" multiple></span>
       <p class="small muted" id="scanmsg" style="margin:8px 0 0">Tip: for a recipe over two pages, pick both photos at once.</p>
+      <p style="margin:16px 0 8px"><b>Moving from Recipe Keeper?</b> Bring all your recipes over at once.</p>
+      <button type="button" class="block" id="rkbtn">📦 Import a Recipe Keeper backup (.zip)</button>
+      <input id="rk" type="file" accept=".zip,application/zip,application/x-zip-compressed" hidden>
+      <p class="small muted" id="rkmsg" style="margin:8px 0 0"></p>
     </div>
     <p class="small muted center" style="padding:6px 0">or type it in yourself</p>`}
 
@@ -150,6 +154,52 @@ export function render(view, id) {
       msg.textContent = err.message || "Couldn't read that file.";
     } finally {
       btn.classList.remove('busy');
+    }
+  });
+
+  $('#rkbtn', view)?.addEventListener('click', () => $('#rk', view).click());
+  $('#rk', view)?.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const btn = $('#rkbtn', view);
+    const msg = $('#rkmsg', view);
+    btn.disabled = true;
+    msg.textContent = 'Opening backup…';
+    try {
+      const { readRecipeKeeperZip } = await import('../lib/recipeKeeper.js');
+      const { recipes, getImage } = await readRecipeKeeperZip(file);
+      if (!recipes.length) throw new Error('No recipes found in that backup.');
+      const have = new Set(store.recipes.map((r) => r.title.trim().toLowerCase()));
+      let added = 0, skipped = 0;
+      const failed = [];
+      for (const [i, r] of recipes.entries()) {
+        msg.textContent = `Importing ${i + 1} of ${recipes.length}: ${r.title}…`;
+        const key = r.title.trim().toLowerCase();
+        if (have.has(key)) { skipped++; continue; } // already imported earlier
+        try {
+          const { photos, ...recipe } = r;
+          const img = photos[0] ? await getImage(photos[0]) : null;
+          recipe.photo_url = img ? await uploadPhoto(img) : '';
+          await saveRecipe(recipe);
+          have.add(key);
+          added++;
+        } catch (err) {
+          failed.push(r.title);
+        }
+      }
+      const s = (n) => (n === 1 ? '' : 's');
+      msg.textContent = [
+        `Imported ${added} recipe${s(added)}.`,
+        skipped ? `Skipped ${skipped} you already had.` : '',
+        failed.length ? `Couldn't import: ${failed.join(', ')}.` : '',
+      ].filter(Boolean).join(' ');
+      toast(msg.textContent, 5000);
+      if (added && !failed.length) location.hash = '#/';
+    } catch (err) {
+      msg.textContent = err.message || "Couldn't read that backup.";
+    } finally {
+      btn.disabled = false;
     }
   });
 
