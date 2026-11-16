@@ -2,6 +2,7 @@
 import { $, esc, toast, busy, foodEmoji } from '../lib/dom.js';
 import { getRecipe, saveRecipe, uploadPhoto, fetchPage } from '../db.js';
 import { extractRecipeFromHtml } from '../lib/importer.js';
+import { parseRecipeText } from '../lib/textRecipe.js';
 
 export const tab = 'new';
 
@@ -30,6 +31,9 @@ export function render(view, id) {
         <input id="url" type="url" inputmode="url" placeholder="https://…" autocapitalize="off">
         <button class="primary shrink" id="imp" type="button">Import</button>
       </div>
+      <p style="margin:14px 0 10px"><b>Got it on paper or in a PDF?</b> Snap the recipe card or cookbook page, or pick a PDF.</p>
+      <span class="btn file-btn block" id="scanbtn">📷 Scan a photo or PDF<input id="scan" type="file" accept="image/*,application/pdf,.pdf" multiple></span>
+      <p class="small muted" id="scanmsg" style="margin:8px 0 0">Tip: for a recipe over two pages, pick both photos at once.</p>
     </div>
     <p class="small muted center" style="padding:6px 0">or type it in yourself</p>`}
 
@@ -112,6 +116,7 @@ export function render(view, id) {
       const found = extractRecipeFromHtml(html, url);
       if (!found) throw new Error("Couldn't find a recipe on that page.");
       fill(found);
+      $('#title', view).scrollIntoView({ behavior: 'smooth', block: 'center' });
       toast(found.partial
         ? "Got the name and photo, but this site hides the recipe. Copy the ingredients and steps in by hand."
         : 'Recipe imported! Check it over, then tap Save.', 5000);
@@ -119,6 +124,32 @@ export function render(view, id) {
       toast(e.message.replace(/^.*?(The website said no)/, '$1'), 5000);
     } finally {
       busy(btn, false);
+    }
+  });
+
+  $('#scan', view)?.addEventListener('change', async (e) => {
+    const files = [...e.target.files];
+    e.target.value = '';
+    if (!files.length) return;
+    const btn = $('#scanbtn', view);
+    const msg = $('#scanmsg', view);
+    btn.classList.add('busy');
+    const report = (t) => { msg.textContent = t; };
+    try {
+      const { readRecipeFiles } = await import('../lib/scan.js');
+      const text = await readRecipeFiles(files, report);
+      if (!text.trim()) throw new Error("Couldn't find any words. Try a sharper, well-lit photo.");
+      const found = parseRecipeText(text);
+      fill({ ...found, photo_url: photoUrl });
+      $('#title', view).scrollIntoView({ behavior: 'smooth', block: 'center' });
+      msg.textContent = "Done! Scanning isn't perfect, so check the fields below and fix anything odd.";
+      toast(found.ingredients.length || found.steps.length
+        ? 'Recipe scanned! Check it over, then tap Save.'
+        : "Couldn't tell which part is which, so all the text is in Notes.", 5000);
+    } catch (err) {
+      msg.textContent = err.message || "Couldn't read that file.";
+    } finally {
+      btn.classList.remove('busy');
     }
   });
 

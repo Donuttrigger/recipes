@@ -194,3 +194,5 @@ label .hint { font-weight: 400; color: var(--muted); }
 }
 .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+.file-btn.block { display: flex; width: 100%; }
+.file-btn.busy { opacity: .6; pointer-events: none; }
