@@ -161,9 +161,11 @@ revoke execute on function public.complete_chore_by_link(text, uuid) from public
 grant execute on function public.chores_due(text) to anon, authenticated;
 grant execute on function public.complete_chore_by_link(text, uuid) to anon, authenticated;
 
--- The calendar the iPhones subscribe to, now with chores: meals as before, plus each open chore
--- as an all-day event (repeating chores repeat in the calendar too) with an 8 AM alert.
-create or replace function public.meal_calendar(feed text)
+-- The calendars the iPhones subscribe to. cal = 'meals' or 'chores' gives one calendar each;
+-- without it (older links) you get both in one. Chores are all-day events (repeating ones repeat
+-- in the calendar too) with an 8 AM alert.
+drop function if exists public.meal_calendar(text);
+create or replace function public.meal_calendar(feed text, cal text default 'all')
 returns public."*/*"
 language plpgsql
 stable
@@ -184,13 +186,14 @@ begin
   end if;
 
   out := 'BEGIN:VCALENDAR' || nl || 'VERSION:2.0' || nl || 'PRODID:-//Our Recipes//Meal plan//EN' || nl
-      || 'CALSCALE:GREGORIAN' || nl || 'METHOD:PUBLISH' || nl || 'X-WR-CALNAME:Meals & chores' || nl
+      || 'CALSCALE:GREGORIAN' || nl || 'METHOD:PUBLISH' || nl
+      || 'X-WR-CALNAME:' || case cal when 'meals' then 'Meals' when 'chores' then 'Chores' else 'Meals & chores' end || nl
       || 'X-WR-TIMEZONE:America/Toronto' || nl
       || 'REFRESH-INTERVAL;VALUE=DURATION:PT1H' || nl || 'X-PUBLISHED-TTL:PT1H' || nl;
 
   for m in
     select * from meal_plan
-    where day >= home_today() - 60
+    where day >= home_today() - 60 and cal <> 'chores'
     order by day, array_position(array['breakfast', 'lunch', 'dinner'], meal), created_at
   loop
     label := case m.meal when 'breakfast' then '🍳 Breakfast' when 'lunch' then '🥪 Lunch' else '🍽️ Dinner' end;
@@ -210,7 +213,7 @@ begin
       || 'END:VEVENT' || nl;
   end loop;
 
-  for m in select * from chores where done_at is null order by next_due, title loop
+  for m in select * from chores where done_at is null and cal <> 'meals' order by next_due, title loop
     out := out || 'BEGIN:VEVENT' || nl
       || 'UID:chore-' || m.id || '@our-recipes' || nl
       || 'DTSTAMP:' || stamp || nl
@@ -232,11 +235,11 @@ begin
   out := out || 'END:VCALENDAR' || nl;
 
   perform set_config('response.headers',
-    '[{"Content-Type": "text/calendar; charset=utf-8"}, {"Content-Disposition": "inline; filename=\"meal-plan.ics\""}, {"Cache-Control": "no-cache"}]',
+    '[{"Content-Type": "text/calendar; charset=utf-8"}, {"Content-Disposition": "inline; filename=\"' || coalesce(nullif(cal, 'all'), 'meal-plan') || '.ics\""}, {"Cache-Control": "no-cache"}]',
     true);
   return convert_to(out, 'UTF8');
 end;
 $$;
 
-revoke execute on function public.meal_calendar(text) from public;
-grant execute on function public.meal_calendar(text) to anon, authenticated;
+revoke execute on function public.meal_calendar(text, text) from public;
+grant execute on function public.meal_calendar(text, text) to anon, authenticated;

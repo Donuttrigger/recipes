@@ -4,6 +4,7 @@
 import { $, esc, toast, sheet, busy } from '../lib/dom.js';
 import { store, dayString, saveChore, deleteChore, completeChore, undoChore } from '../db.js';
 import { REPEATS, IDEAS, repeatValue, repeatLabel, parseDay } from '../lib/chores.js';
+import { calendarSheet } from './plan.js';
 
 export const tab = 'chores';
 
@@ -138,12 +139,13 @@ export function render(view) {
         <h2 class="${name === 'Overdue' ? 'late' : ''}">${name}</h2>
         <ul class="shop chores">${list.map((c) => row(c, today)).join('')}</ul>`).join('')}
       ${doneToday.length ? `<h2>Done today</h2><ul class="shop chores">${doneToday.map(doneRow).join('')}</ul>` : ''}
-      <p class="small muted" style="margin-top:22px">Chores show on the Plan tab and in the iPhone Calendar with your meals
-      (set it up from Plan → 📅 iPhone Calendar).</p>`;
+      <button class="block" id="cal" style="margin-top:22px">📅 Show chores in the iPhone Calendar</button>
+      <p class="small muted">Chores also show on the Plan tab next to your meals.</p>`;
   };
 
   const onClick = async (e) => {
     if (e.target.closest('#add, #add2')) return choreSheet();
+    if (e.target.closest('#cal')) return calendarSheet();
     const act = e.target.closest('[data-act]');
     const li = e.target.closest('li[data-id]');
     const c = li && store.chores.find((x) => x.id === li.dataset.id);

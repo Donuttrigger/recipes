@@ -241,18 +241,23 @@ export async function undoChore(id) {
   return loadChores();
 }
 
-// The private link iPhones subscribe to (Settings > Calendar > Add Subscribed Calendar)
-function feedUrl(token) {
-  const u = new URL(`${SUPABASE_URL}/rest/v1/rpc/meal_calendar`);
-  u.searchParams.set('feed', token);
-  u.searchParams.set('apikey', SUPABASE_ANON_KEY);
-  return u.toString();
+// The private links iPhones subscribe to (Settings > Calendar > Add Subscribed Calendar):
+// one calendar for meals and one for chores, sharing one private code.
+function feedUrls(token) {
+  const url = (cal) => {
+    const u = new URL(`${SUPABASE_URL}/rest/v1/rpc/meal_calendar`);
+    u.searchParams.set('feed', token);
+    u.searchParams.set('cal', cal);
+    u.searchParams.set('apikey', SUPABASE_ANON_KEY);
+    return u.toString();
+  };
+  return { meals: url('meals'), chores: url('chores') };
 }
-export async function calendarLink() {
-  return feedUrl(check(await sb.rpc('calendar_feed_token')));
+export async function calendarLinks() {
+  return feedUrls(check(await sb.rpc('calendar_feed_token')));
 }
-export async function newCalendarLink() {
-  return feedUrl(check(await sb.rpc('new_calendar_feed_token')));
+export async function newCalendarLinks() {
+  return feedUrls(check(await sb.rpc('new_calendar_feed_token')));
 }
 
 // ---- live sync between phones ---------------------------------------------------

@@ -1,7 +1,7 @@
 // Plan: a week at a time, with meals (recipes or anything else) and chores for each day.
 // The same plan shows up in the iPhone Calendar app through a subscribed calendar.
 import { $, $$, esc, toast, sheet, busy, foodEmoji } from '../lib/dom.js';
-import { store, addMeal, deleteMeal, dayString, calendarLink, newCalendarLink } from '../db.js';
+import { store, addMeal, deleteMeal, dayString, calendarLinks, newCalendarLinks } from '../db.js';
 import { dueDays } from '../lib/chores.js';
 import { choreSheet, tick } from './chores.js';
 
@@ -127,42 +127,60 @@ export function pickMeal({ day, recipe } = {}) {
   drawList();
 }
 
-function calendarSheet() {
+export function calendarSheet() {
   const s = sheet(`
-    <h2>📅 See the plan in your iPhone Calendar</h2>
-    <p class="small muted" style="margin-top:-6px">Meals and chores show up as all-day events in their own calendar.
-    It updates by itself (the iPhone checks about once an hour). Do this once on each iPhone.
-    For chore alerts at 8 AM, turn <b>Remove Alerts</b> off when subscribing.</p>
+    <h2>📅 See it in your iPhone Calendar</h2>
+    <p class="small muted" style="margin-top:-6px">Meals and chores each get their own calendar, so you can give them
+    different colours or hide one. They update by themselves (the iPhone checks about once an hour).
+    Do this once on each iPhone.</p>
     <div id="cbody"><p class="center muted"><span class="spinner"></span></p></div>`);
 
-  const draw = (url) => {
-    const webcal = url.replace(/^https:/, 'webcal:');
+  const block = (key, title, extra) => `
+    <div class="calbox">
+      <h3>${title}</h3>
+      <a class="btn primary block" href="#" data-sub="${key}" style="display:flex">Subscribe on this iPhone</a>
+      ${extra}
+      <button class="block" data-copy="${key}" style="margin-top:8px">Copy the link instead</button>
+    </div>`;
+
+  const draw = (urls) => {
     $('#cbody', s.el).innerHTML = `
-      <a class="btn primary block" href="${esc(webcal)}" style="display:flex">Subscribe on this iPhone</a>
-      <p class="small muted">Tap it, then tap <b>Subscribe</b> and <b>Add</b>.</p>
-      <button class="block" id="copy">Copy the link instead</button>
-      <p class="small muted">Then on the iPhone: <b>Settings → Apps → Calendar → Calendar Accounts → Add Account →
-      Other → Add Subscribed Calendar</b>, paste the link, tap <b>Next</b>, then <b>Save</b>.</p>
-      <p class="small muted">Keep the link private: anyone who has it can see the meal plan (but can't change it).</p>
-      <button class="ghost small" id="reset">Stop the old link and make a new one</button>
+      ${block('meals', '🍽️ Meals', '')}
+      ${block('chores', '🧹 Chores', '<p class="small muted">To get an 8 AM alert on chore days, turn <b>Remove Alerts</b> off on the subscribe screen.</p>')}
+      <p class="small muted">Tap <b>Subscribe on this iPhone</b>, then <b>Subscribe</b> and <b>Add</b>. If nothing opens, copy the link, then:
+      <b>Settings → Apps → Calendar → Calendar Accounts → Add Account → Other → Add Subscribed Calendar</b>,
+      paste it, tap <b>Next</b>, then <b>Save</b>.</p>
+      <p class="small muted">Had the older combined “Meal plan” calendar? Delete it in that same Calendar Accounts list
+      (under Subscribed Calendars), or everything shows twice.</p>
+      <p class="small muted">Keep the links private: anyone who has one can see it (but can't change anything).</p>
+      <button class="ghost small" id="reset">Stop the old links and make new ones</button>
       <div class="row" style="margin-top:12px"><button id="done">Done</button></div>`;
+    $$('[data-sub]', s.el).forEach((a) => { a.href = urls[a.dataset.sub].replace(/^https:/, 'webcal:'); });
     $('#done', s.el).onclick = s.close;
-    $('#copy', s.el).onclick = async (e) => {
-      try { await navigator.clipboard.writeText(url); toast('Link copied'); }
-      catch { prompt('Copy this link:', url); }
-      e.target.blur();
-    };
+    $$('[data-copy]', s.el).forEach((b) => {
+      b.onclick = async () => {
+        const url = urls[b.dataset.copy];
+        try { await navigator.clipboard.writeText(url); toast('Link copied'); }
+        catch { prompt('Copy this link:', url); }
+        b.blur();
+      };
+    });
     $('#reset', s.el).onclick = async (e) => {
-      if (!confirm('Make a new link? Any iPhone using the old one stops updating and has to subscribe again.')) return;
+      if (!confirm('Make new links? Any iPhone using the old ones stops updating and has to subscribe again.')) return;
       busy(e.target, true);
-      try { draw(await newCalendarLink()); toast('New link made'); }
+      try { draw(await newCalendarLinks()); toast('New links made'); }
       catch (err) { busy(e.target, false); toast(err.message); }
     };
   };
 
-  calendarLink().then(draw).catch((e) => {
-    $('#cbody', s.el).innerHTML = `<p class="err">${esc(e.message)}</p>`;
-  });
+  calendarLinks()
+    .then(async (urls) => {
+      // Make sure the database has the two-calendar version before handing out the links
+      const res = await fetch(urls.chores).catch(() => null);
+      if (res && !res.ok) throw new Error('The calendars need a database update first: run supabase-chores.sql again in Supabase.');
+      draw(urls);
+    })
+    .catch((e) => { $('#cbody', s.el).innerHTML = `<p class="err">${esc(e.message)}</p>`; });
 }
 
 export function render(view) {

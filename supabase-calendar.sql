@@ -116,6 +116,9 @@ $$;
 
 -- The calendar the iPhones subscribe to: every planned meal from 60 days ago onwards,
 -- as all-day events. Called as .../rest/v1/rpc/meal_calendar?feed=<code>&apikey=<anon key>
+-- supabase-chores.sql replaces this with a version that also does chores: if you re-run
+-- this file, run supabase-chores.sql again afterwards.
+drop function if exists public.meal_calendar(text, text);
 create or replace function public.meal_calendar(feed text)
 returns public."*/*"
 language plpgsql

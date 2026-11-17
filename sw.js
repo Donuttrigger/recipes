@@ -1,6 +1,6 @@
 // Keeps the app's own files on the phone so it opens instantly (and offline).
 // Bump VERSION whenever you change any file so phones pick up the update.
-const VERSION = 'v5';
+const VERSION = 'v6';
 const FILES = [
   './', './index.html', './styles.css', './manifest.webmanifest',
   './js/app.js', './js/db.js', './js/config.js',
