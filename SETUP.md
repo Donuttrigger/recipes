@@ -20,6 +20,7 @@ Supabase stores your recipes, photos and shopping list so both phones see the sa
 4. **Set up the tables.** In the left sidebar, tap **SQL Editor**, then tap **+ New query**.
    Open the file `supabase-setup.sql`, copy **all** of it, paste it in, and tap **Run**.
    You should see "Success. No rows returned".
+   Then do the same with `supabase-calendar.sql` (the meal plan calendar).
 5. **Create your two logins.** In the left sidebar, tap **Authentication** and then **Users**.
    Tap **Add user** → **Create new user**. Enter your email and a password, leave
    **Auto Confirm User** ticked, and tap **Create user**. Do the same for your girlfriend's email.
@@ -69,3 +70,14 @@ Do the same on the other iPhone. You're done! 🎉
 - **Shopping list:** on a recipe, tap **Add to shopping list**. Untick anything you already have.
   Tick items off in the shop. Your girlfriend sees them ticked off on her phone too.
 - **Photos:** when adding or editing a recipe, tap **Choose photo** to take one or pick one from your library.
+- **Meal plan:** tap **Plan**, then **+ Add** on a day and pick a recipe (or type something like "Leftovers").
+  From a recipe, tap **Add to meal plan**. Use ‹ › to move between weeks.
+- **See the plan in the iPhone Calendar app:** on the Plan tab tap **📅 iPhone Calendar**, then **Subscribe on this iPhone**.
+  The meals appear as all-day events in a calendar called "Meal plan" and update by themselves.
+  Do it once on each iPhone. You change meals in the app, not in the Calendar app.
+
+## Adding the meal plan to an app that's already set up
+
+1. Open Supabase → **SQL Editor** → **+ New query**.
+2. Open `supabase-calendar.sql`, copy **all** of it, paste it in, and tap **Run**. You should see "Success".
+3. Close the Recipes app completely and open it again.

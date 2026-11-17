@@ -2,6 +2,7 @@
 import { $, $$, esc, toast, sheet, foodEmoji } from '../lib/dom.js';
 import { getRecipe, saveRecipe, deleteRecipe, addShopping } from '../db.js';
 import { scaleIngredient, formatQty } from '../lib/scale.js';
+import { pickMeal } from './plan.js';
 
 export const tab = 'home';
 const servingsFor = {}; // remembers chosen servings per recipe while the app is open
@@ -51,6 +52,7 @@ export function render(view, id) {
           : `<li>${esc(scaleIngredient(l, factor))}</li>`).join('') || '<li class="muted">No ingredients listed.</li>'}
       </ul>
       ${r.ingredients?.length ? `<button class="block" id="toshop" style="margin-top:14px">🛒 Add to shopping list</button>` : ''}
+      <button class="block" id="toplan" style="margin-top:10px">📅 Add to meal plan</button>
 
       <h2>Steps</h2>
       <ol class="steps">
@@ -88,6 +90,8 @@ export function render(view, id) {
         else { await wakeLock?.release(); wakeLock = null; }
       } catch { e.target.checked = false; toast('Your phone did not allow that.'); }
     });
+
+    $('#toplan', view).onclick = () => pickMeal({ recipe: r });
 
     $('#toshop', view)?.addEventListener('click', () => {
       const lines = r.ingredients.filter((l) => !isSection(l)).map((l) => scaleIngredient(l, factor));

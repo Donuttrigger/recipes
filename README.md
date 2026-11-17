@@ -25,14 +25,26 @@ js/lib/scan.js          reads text from photos (Tesseract.js OCR) and PDFs (PDF.
 js/lib/textRecipe.js    splits scanned text into title, ingredients, steps, notes
 js/lib/recipeKeeper.js  reads a Recipe Keeper backup .zip (JSZip)
 js/lib/dom.js           small UI helpers (toast, bottom sheet, escaping)
-js/views/*.js           one file per screen: list, detail, form, shop, login
+js/views/*.js           one file per screen: list, detail, form, shop, plan (meal calendar), login
 supabase-setup.sql      database tables, security rules, photo storage, import function
+supabase-calendar.sql   meal plan table + the iPhone calendar feed (run after supabase-setup.sql)
 ```
 
 **Backend:** Supabase (free tier) provides Postgres, login, photo storage and realtime
 sync. Every signed-in user shares the same data. Website import uses a Postgres
 function (`fetch_recipe_page`, via the `http` extension) to download the page,
 because browsers can't read other websites directly. The app then parses it in the browser.
+
+## Meal plan and the iPhone calendar
+
+The **Plan** tab keeps meals per day in the `meal_plan` table. iPhones show the same plan
+through a *subscribed calendar*: `meal_calendar(feed)` is a Postgres function that returns
+an `.ics` file (via PostgREST's `"*/*"` media-type domain), called as
+`<SUPABASE_URL>/rest/v1/rpc/meal_calendar?feed=<code>&apikey=<anon key>`. A subscribed
+calendar can't sign in, so the link carries a long random code (table `calendar_feed`,
+readable only through the security-definer functions). "Stop the old link" in the app makes
+a new code. The calendar is read-only: changes go in the app, and iPhones pick them up
+when they refresh (about hourly).
 
 ## Adding a feature
 

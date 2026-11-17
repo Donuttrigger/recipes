@@ -9,6 +9,7 @@ import * as list from './views/list.js';
 import * as detail from './views/detail.js';
 import * as form from './views/form.js';
 import * as shop from './views/shop.js';
+import * as plan from './views/plan.js';
 
 const routes = [
   { path: /^$/, view: list },
@@ -16,6 +17,7 @@ const routes = [
   { path: /^new$/, view: form },
   { path: /^edit\/([\w-]+)$/, view: form },
   { path: /^shop$/, view: shop },
+  { path: /^plan$/, view: plan },
 ];
 
 const viewEl = $('#view');

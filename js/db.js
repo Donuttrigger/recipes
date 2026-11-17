@@ -23,6 +23,8 @@ function cache(key, val) {
 export const store = {
   recipes: cache('recipes') || [],
   shopping: cache('shopping') || [],
+  meals: cache('meals') || [],
+  mealsReady: true, // false until the calendar part of the database is set up
 };
 
 function check({ data, error }) {
@@ -44,8 +46,8 @@ export async function signIn(email, password) {
 }
 export async function signOut() {
   await sb.auth.signOut();
-  store.recipes = []; store.shopping = [];
-  cache('recipes', []); cache('shopping', []);
+  store.recipes = []; store.shopping = []; store.meals = [];
+  cache('recipes', []); cache('shopping', []); cache('meals', []);
 }
 
 // ---- recipes ----------------------------------------------------------------
@@ -143,6 +145,63 @@ export async function clearChecked() {
   check(await sb.from('shopping_items').delete().eq('checked', true));
 }
 
+// ---- meal plan (calendar) ------------------------------------------------------
+const MEAL_ORDER = ['breakfast', 'lunch', 'dinner'];
+function saveMeals() {
+  store.meals.sort((a, b) => a.day.localeCompare(b.day)
+    || MEAL_ORDER.indexOf(a.meal) - MEAL_ORDER.indexOf(b.meal)
+    || a.created_at.localeCompare(b.created_at));
+  cache('meals', store.meals);
+  emit('meals');
+}
+
+// Dates are plain "YYYY-MM-DD" strings in the phone's own time zone.
+export function dayString(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export async function loadMeals() {
+  const since = new Date();
+  since.setDate(since.getDate() - 60);
+  const { data, error } = await sb.from('meal_plan').select('*').gte('day', dayString(since)).order('day');
+  if (error) {
+    // Table not created yet: the calendar screen explains the one-time setup.
+    if (/meal_plan/.test(error.message || '')) { store.mealsReady = false; emit('meals'); return []; }
+    throw new Error(error.message);
+  }
+  store.mealsReady = true;
+  store.meals = data;
+  saveMeals();
+  return store.meals;
+}
+
+export async function addMeal({ day, meal, recipe_id = null, title, note = '' }) {
+  const row = check(await sb.from('meal_plan').insert({ day, meal, recipe_id, title, note }).select().single());
+  store.meals = [...store.meals.filter((m) => m.id !== row.id), row];
+  saveMeals();
+  return row;
+}
+
+export async function deleteMeal(id) {
+  store.meals = store.meals.filter((m) => m.id !== id);
+  saveMeals();
+  check(await sb.from('meal_plan').delete().eq('id', id));
+}
+
+// The private link iPhones subscribe to (Settings > Calendar > Add Subscribed Calendar)
+function feedUrl(token) {
+  const u = new URL(`${SUPABASE_URL}/rest/v1/rpc/meal_calendar`);
+  u.searchParams.set('feed', token);
+  u.searchParams.set('apikey', SUPABASE_ANON_KEY);
+  return u.toString();
+}
+export async function calendarLink() {
+  return feedUrl(check(await sb.rpc('calendar_feed_token')));
+}
+export async function newCalendarLink() {
+  return feedUrl(check(await sb.rpc('new_calendar_feed_token')));
+}
+
 // ---- live sync between phones ---------------------------------------------------
 let reloadTimers = {};
 function reloadSoon(what, fn) {
@@ -157,7 +216,11 @@ export function startSync() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'recipes' }, () => reloadSoon('r', loadRecipes))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'shopping_items' }, () => reloadSoon('s', loadShopping))
     .subscribe();
+  // Separate channel, so a missing meal_plan table can't stop recipes and shopping from syncing
+  sb.channel('household-meals')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'meal_plan' }, () => reloadSoon('m', loadMeals))
+    .subscribe();
 }
 export function refreshAll() {
-  return Promise.all([loadRecipes(), loadShopping()]);
+  return Promise.all([loadRecipes(), loadShopping(), loadMeals()]);
 }
