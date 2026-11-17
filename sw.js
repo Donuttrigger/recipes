@@ -1,13 +1,13 @@
 // Keeps the app's own files on the phone so it opens instantly (and offline).
 // Bump VERSION whenever you change any file so phones pick up the update.
-const VERSION = 'v4';
+const VERSION = 'v5';
 const FILES = [
   './', './index.html', './styles.css', './manifest.webmanifest',
   './js/app.js', './js/db.js', './js/config.js',
   './js/lib/dom.js', './js/lib/scale.js', './js/lib/importer.js',
   './js/lib/scan.js', './js/lib/textRecipe.js', './js/lib/recipeKeeper.js',
   './js/views/setup.js', './js/views/login.js', './js/views/list.js',
-  './js/views/detail.js', './js/views/form.js', './js/views/shop.js', './js/views/plan.js',
+  './js/views/detail.js', './js/views/form.js', './js/views/shop.js', './js/views/plan.js', './js/views/chores.js', './js/lib/chores.js',
   './icons/icon-192.png', './icons/apple-touch-icon.png',
 ];
 

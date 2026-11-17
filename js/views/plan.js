@@ -1,7 +1,9 @@
-// Meal plan: a week at a time, with recipes (or anything else) for each day.
+// Plan: a week at a time, with meals (recipes or anything else) and chores for each day.
 // The same plan shows up in the iPhone Calendar app through a subscribed calendar.
 import { $, $$, esc, toast, sheet, busy, foodEmoji } from '../lib/dom.js';
 import { store, addMeal, deleteMeal, dayString, calendarLink, newCalendarLink } from '../db.js';
+import { dueDays } from '../lib/chores.js';
+import { choreSheet, tick } from './chores.js';
 
 export const tab = 'plan';
 export const MEALS = [
@@ -44,6 +46,18 @@ function mealRow(m) {
     </li>`;
 }
 
+// A chore on a day. Only its next due date can be ticked; later repeats are shown faded.
+function choreRow(c, key, today) {
+  const late = c.next_due < today;
+  const current = key === c.next_due || (key === today && late);
+  return `
+    <li data-chore="${c.id}" class="${current ? '' : 'later'}">
+      <span class="mi">🧹</span>
+      <span class="mt" data-act="chore-edit"><span class="ml ${late && key === today ? 'late' : ''}">${late && key === today ? 'Overdue chore' : 'Chore'}</span><span class="cn">${esc(c.title)}</span></span>
+      ${current ? `<button class="tick" data-act="tick" aria-label="Mark “${esc(c.title)}” done"></button>` : ''}
+    </li>`;
+}
+
 // Bottom sheet for choosing what to eat. Used here and from a recipe's page.
 export function pickMeal({ day, recipe } = {}) {
   let meal = 'dinner';
@@ -63,7 +77,8 @@ export function pickMeal({ day, recipe } = {}) {
       <form class="shop-add" id="pform">
         <input id="pother" placeholder="e.g. Leftovers, Pizza night" autocomplete="off" enterkeyhint="done">
         <button class="primary" type="submit">Add</button>
-      </form>`}`);
+      </form>
+      <button class="block" id="pchore" style="margin-top:6px">🧹 Add a chore instead</button>`}`);
 
   $('#pmeal', s.el).addEventListener('click', (e) => {
     const b = e.target.closest('[data-meal]');
@@ -97,6 +112,7 @@ export function pickMeal({ day, recipe } = {}) {
       ? list.map((r) => `<li><button type="button" data-rid="${r.id}"><span class="pe">${foodEmoji(r.title)}</span>${r.favorite ? '★ ' : ''}${esc(r.title)}</button></li>`).join('')
       : `<li class="muted small" style="padding:10px 0">${store.recipes.length ? 'No recipe matches.' : 'No recipes yet.'}</li>`;
   };
+  $('#pchore', s.el).onclick = () => { const d = $('#pday', s.el).value; s.close(); choreSheet({ day: d }); };
   $('#pq', s.el).addEventListener('input', drawList);
   $('#plist', s.el).addEventListener('click', (e) => {
     const b = e.target.closest('[data-rid]');
@@ -114,8 +130,9 @@ export function pickMeal({ day, recipe } = {}) {
 function calendarSheet() {
   const s = sheet(`
     <h2>📅 See the plan in your iPhone Calendar</h2>
-    <p class="small muted" style="margin-top:-6px">Each meal shows up as an all-day event in a calendar called
-    “Meal plan”. It updates by itself (the iPhone checks about once an hour). Do this once on each iPhone.</p>
+    <p class="small muted" style="margin-top:-6px">Meals and chores show up as all-day events in their own calendar.
+    It updates by itself (the iPhone checks about once an hour). Do this once on each iPhone.
+    For chore alerts at 8 AM, turn <b>Remove Alerts</b> off when subscribing.</p>
     <div id="cbody"><p class="center muted"><span class="spinner"></span></p></div>`);
 
   const draw = (url) => {
@@ -160,6 +177,7 @@ export function render(view) {
     }
     const start = weekStart(state.offset);
     const today = dayString(new Date());
+    const openChores = store.choresReady ? store.chores.filter((c) => !c.done_at) : [];
     let html = '';
     for (let i = 0; i < 7; i++) {
       const d = new Date(start);
@@ -167,6 +185,7 @@ export function render(view) {
       const key = dayString(d);
       const meals = store.meals.filter((m) => m.day === key)
         .sort((a, b) => MEALS.indexOf(mealInfo(a.meal)) - MEALS.indexOf(mealInfo(b.meal)));
+      const chores = openChores.filter((c) => dueDays(c, key, key).length || (key === today && c.next_due < today));
       html += `
         <section class="day ${key === today ? 'today' : ''} ${key < today ? 'past' : ''}">
           <div class="dh">
@@ -174,11 +193,11 @@ export function render(view) {
             <span class="dd">${fmt(d, { month: 'short', day: 'numeric' })}</span>
             <button class="ghost small add" data-day="${key}" aria-label="Add a meal">+ Add</button>
           </div>
-          ${meals.length ? `<ul class="meals">${meals.map(mealRow).join('')}</ul>` : ''}
+          ${meals.length || chores.length ? `<ul class="meals">${meals.map(mealRow).join('')}${chores.map((c) => choreRow(c, key, today)).join('')}</ul>` : ''}
         </section>`;
     }
     view.innerHTML = `
-      <div class="topbar"><h1>Meal plan</h1>
+      <div class="topbar"><h1>Plan</h1>
         <button class="ghost small" id="cal" aria-label="Show in iPhone Calendar">📅 iPhone Calendar</button></div>
       <div class="weeknav">
         <button id="prev" aria-label="Previous week">‹</button>
@@ -190,8 +209,16 @@ export function render(view) {
 
   // The screen's element is shared with every other screen, so remove this on the way out.
   const onClick = async (e) => {
+    const ce = e.target.closest('[data-act="chore-edit"]');
+    if (ce) return choreSheet(store.chores.find((c) => c.id === ce.closest('li').dataset.chore));
     const t = e.target.closest('button');
     if (!t) return;
+    if (t.dataset.act === 'tick') {
+      const c = store.chores.find((x) => x.id === t.closest('li').dataset.chore);
+      t.textContent = '✓'; t.classList.add('on');
+      if (c) await tick(c);
+      return;
+    }
     if (t.id === 'prev') { state.offset--; draw(); }
     else if (t.id === 'next') { state.offset++; draw(); }
     else if (t.id === 'now') { state.offset = 0; draw(); }
@@ -206,7 +233,7 @@ export function render(view) {
 
   draw();
   return {
-    update: (what) => (what === 'meals' || what === 'recipes') && draw(),
+    update: (what) => ['meals', 'recipes', 'chores'].includes(what) && draw(),
     cleanup: () => view.removeEventListener('click', onClick),
   };
 }

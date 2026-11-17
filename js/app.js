@@ -10,6 +10,7 @@ import * as detail from './views/detail.js';
 import * as form from './views/form.js';
 import * as shop from './views/shop.js';
 import * as plan from './views/plan.js';
+import * as chores from './views/chores.js';
 
 const routes = [
   { path: /^$/, view: list },
@@ -18,6 +19,7 @@ const routes = [
   { path: /^edit\/([\w-]+)$/, view: form },
   { path: /^shop$/, view: shop },
   { path: /^plan$/, view: plan },
+  { path: /^chores$/, view: chores },
 ];
 
 const viewEl = $('#view');
@@ -50,6 +52,12 @@ function updateBadge() {
   const b = $('#shop-badge');
   b.hidden = !n;
   b.textContent = n;
+  // Chores due today or overdue
+  const today = db.dayString(new Date());
+  const c = db.store.chores.filter((x) => !x.done_at && x.next_due <= today).length;
+  const cb = $('#chore-badge');
+  cb.hidden = !c;
+  cb.textContent = c;
 }
 
 db.onChange((what) => {

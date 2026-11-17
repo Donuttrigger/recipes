@@ -25,6 +25,8 @@ export const store = {
   shopping: cache('shopping') || [],
   meals: cache('meals') || [],
   mealsReady: true, // false until the calendar part of the database is set up
+  chores: cache('chores') || [],
+  choresReady: true, // false until supabase-chores.sql has been run
 };
 
 function check({ data, error }) {
@@ -46,8 +48,8 @@ export async function signIn(email, password) {
 }
 export async function signOut() {
   await sb.auth.signOut();
-  store.recipes = []; store.shopping = []; store.meals = [];
-  cache('recipes', []); cache('shopping', []); cache('meals', []);
+  store.recipes = []; store.shopping = []; store.meals = []; store.chores = [];
+  cache('recipes', []); cache('shopping', []); cache('meals', []); cache('chores', []);
 }
 
 // ---- recipes ----------------------------------------------------------------
@@ -188,6 +190,57 @@ export async function deleteMeal(id) {
   check(await sb.from('meal_plan').delete().eq('id', id));
 }
 
+// ---- chores -------------------------------------------------------------------
+function saveChores() {
+  store.chores.sort((a, b) => a.next_due.localeCompare(b.next_due) || a.title.localeCompare(b.title));
+  cache('chores', store.chores);
+  emit('chores');
+}
+
+// Open chores, plus ones finished in the last two days (so a mis-tap can be undone)
+export async function loadChores() {
+  const since = new Date(Date.now() - 2 * 86400000).toISOString();
+  const { data, error } = await sb.from('chores').select('*')
+    .or(`done_at.is.null,last_done_at.gte.${since}`).order('next_due');
+  if (error) {
+    if (/chores/.test(error.message || '')) { store.choresReady = false; emit('chores'); return []; }
+    throw new Error(error.message);
+  }
+  store.choresReady = true;
+  store.chores = data;
+  saveChores();
+  return store.chores;
+}
+
+const CHORE_FIELDS = ['title', 'notes', 'anchor', 'next_due', 'repeat_unit', 'repeat_every'];
+export async function saveChore(chore) {
+  const row = {};
+  for (const f of CHORE_FIELDS) if (chore[f] !== undefined) row[f] = chore[f];
+  const q = chore.id
+    ? sb.from('chores').update(row).eq('id', chore.id)
+    : sb.from('chores').insert(row);
+  const saved = check(await q.select().single());
+  store.chores = [...store.chores.filter((c) => c.id !== saved.id), saved];
+  saveChores();
+  return saved;
+}
+
+export async function deleteChore(id) {
+  store.chores = store.chores.filter((c) => c.id !== id);
+  saveChores();
+  check(await sb.from('chores').delete().eq('id', id));
+}
+
+// Ticking off and undo run in the database, so the app and the iPhone Shortcut agree on the next date
+export async function completeChore(id) {
+  check(await sb.rpc('complete_chore', { chore: id }));
+  return loadChores();
+}
+export async function undoChore(id) {
+  check(await sb.rpc('undo_chore', { chore: id }));
+  return loadChores();
+}
+
 // The private link iPhones subscribe to (Settings > Calendar > Add Subscribed Calendar)
 function feedUrl(token) {
   const u = new URL(`${SUPABASE_URL}/rest/v1/rpc/meal_calendar`);
@@ -220,7 +273,10 @@ export function startSync() {
   sb.channel('household-meals')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'meal_plan' }, () => reloadSoon('m', loadMeals))
     .subscribe();
+  sb.channel('household-chores')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'chores' }, () => reloadSoon('c', loadChores))
+    .subscribe();
 }
 export function refreshAll() {
-  return Promise.all([loadRecipes(), loadShopping(), loadMeals()]);
+  return Promise.all([loadRecipes(), loadShopping(), loadMeals(), loadChores()]);
 }

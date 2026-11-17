@@ -28,6 +28,8 @@ js/lib/dom.js           small UI helpers (toast, bottom sheet, escaping)
 js/views/*.js           one file per screen: list, detail, form, shop, plan (meal calendar), login
 supabase-setup.sql      database tables, security rules, photo storage, import function
 supabase-calendar.sql   meal plan table + the iPhone calendar feed (run after supabase-setup.sql)
+supabase-chores.sql     chores table, tick-off/undo functions, chores in the calendar feed (run after supabase-calendar.sql)
+js/lib/chores.js        chore repeat maths (mirrors chore_step() in the SQL)
 ```
 
 **Backend:** Supabase (free tier) provides Postgres, login, photo storage and realtime
@@ -45,6 +47,20 @@ calendar can't sign in, so the link carries a long random code (table `calendar_
 readable only through the security-definer functions). "Stop the old link" in the app makes
 a new code. The calendar is read-only: changes go in the app, and iPhones pick them up
 when they refresh (about hourly).
+
+## Chores
+
+The **Chores** tab (`js/views/chores.js`) keeps one row per chore in `chores`. A repeating
+chore has an `anchor` date and a repeat (`repeat_every` × day/week/month/year); its
+`next_due` moves forward when it's ticked off. Repeats are counted from the anchor, so
+garbage day keeps its weekday and "every 3 months from Jan 31" gives Apr 30, Jul 31...
+Ticking off and undo run in the database (`complete_chore`, `undo_chore`), so every
+client computes the same next date. Chores also show on the Plan tab and go into the
+calendar feed as repeating all-day events with an 8 AM alert.
+
+For an iPhone Shortcut that copies chores into Reminders, `chores_due(feed)` returns the
+chores due by tomorrow as JSON and `complete_chore_by_link(feed, chore)` ticks one off;
+both use the calendar link's private code.
 
 ## Adding a feature
 

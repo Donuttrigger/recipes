@@ -20,7 +20,7 @@ Supabase stores your recipes, photos and shopping list so both phones see the sa
 4. **Set up the tables.** In the left sidebar, tap **SQL Editor**, then tap **+ New query**.
    Open the file `supabase-setup.sql`, copy **all** of it, paste it in, and tap **Run**.
    You should see "Success. No rows returned".
-   Then do the same with `supabase-calendar.sql` (the meal plan calendar).
+   Then do the same with `supabase-calendar.sql` (the meal plan calendar), and then `supabase-chores.sql` (chores).
 5. **Create your two logins.** In the left sidebar, tap **Authentication** and then **Users**.
    Tap **Add user** → **Create new user**. Enter your email and a password, leave
    **Auto Confirm User** ticked, and tap **Create user**. Do the same for your girlfriend's email.
@@ -75,6 +75,14 @@ Do the same on the other iPhone. You're done! 🎉
 - **See the plan in the iPhone Calendar app:** on the Plan tab tap **📅 iPhone Calendar**, then **Subscribe on this iPhone**.
   The meals appear as all-day events in a calendar called "Meal plan" and update by themselves.
   Do it once on each iPhone. You change meals in the app, not in the Calendar app.
+
+- **Chores:** tap **Chores** → **+ Add**. Pick an idea or type your own, choose the first day and how often it repeats.
+  Tap the circle when it's done: a repeating chore moves to its next date. Tap a chore to change or delete it.
+  Chores due today or overdue show a number on the Chores tab, and they appear on the Plan tab and in the iPhone calendar.
+
+## Adding chores to an app that's already set up
+
+Same as below, but with `supabase-chores.sql`.
 
 ## Adding the meal plan to an app that's already set up
 
