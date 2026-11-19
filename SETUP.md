@@ -67,8 +67,10 @@ Do the same on the other iPhone. You're done! 🎉
 - **Move recipes from Recipe Keeper:** in Recipe Keeper, make a backup (Settings → Backup), then in this app tap **Add** → **Import a Recipe Keeper backup** and pick the .zip.
   Running it again skips recipes you already have.
 - **Change servings:** on a recipe, use the **− / +** buttons. All the amounts update.
-- **Shopping list:** on a recipe, tap **Add to shopping list**. Untick anything you already have.
-  Tick items off in the shop. Your girlfriend sees them ticked off on her phone too.
+- **Shopping lists:** tabs at the top (Grocery, Costco, ...); **+** adds a list, press and hold a tab to rename or delete it.
+  Items group under store sections automatically. Tap **⋯** on an item to move it to another list or change its section;
+  drag **☰** to reorder. Tap an item to tick it off; your girlfriend sees it ticked off on her phone too.
+  On a recipe, **Add to shopping list** lets you pick which list the ingredients go to.
 - **Photos:** when adding or editing a recipe, tap **Choose photo** to take one or pick one from your library.
 - **Meal plan:** tap **Plan**, then **+ Add** on a day and pick a recipe (or type something like "Leftovers").
   From a recipe, tap **Add to meal plan**. Use ‹ › to move between weeks.
@@ -79,6 +81,10 @@ Do the same on the other iPhone. You're done! 🎉
 - **Chores:** tap **Chores** → **+ Add**. Pick an idea or type your own, choose the first day and how often it repeats.
   Tap the circle when it's done: a repeating chore moves to its next date. Tap a chore to change or delete it.
   Chores due today or overdue show a number on the Chores tab, and they appear on the Plan tab and in the iPhone calendar.
+
+## Adding several shopping lists to an app that's already set up
+
+Same as below, but with `supabase-shopping-lists.sql`.
 
 ## Adding chores to an app that's already set up
 

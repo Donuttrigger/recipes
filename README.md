@@ -30,6 +30,8 @@ supabase-setup.sql      database tables, security rules, photo storage, import f
 supabase-calendar.sql   meal plan table + the iPhone calendar feed (run after supabase-setup.sql)
 supabase-chores.sql     chores table, tick-off/undo functions, chores in the calendar feed (run after supabase-calendar.sql)
 js/lib/chores.js        chore repeat maths (mirrors chore_step() in the SQL)
+js/lib/sections.js      shopping sections + guessing an item's section from its words
+supabase-shopping-lists.sql  several shopping lists (tabs), item sections and order
 ```
 
 **Backend:** Supabase (free tier) provides Postgres, login, photo storage and realtime
@@ -61,6 +63,14 @@ calendar feed as repeating all-day events with an 8 AM alert.
 For an iPhone Shortcut that copies chores into Reminders, `chores_due(feed)` returns the
 chores due by tomorrow as JSON and `complete_chore_by_link(feed, chore)` ticks one off;
 both use the calendar link's private code.
+
+## Shopping lists
+
+`shopping_lists` holds the tabs (Grocery, Costco, ...); each `shopping_items` row has a
+`list_id`, a `section` ('' means the app guesses it with `js/lib/sections.js`) and a
+`position` for drag-to-reorder (SortableJS from jsDelivr, loaded only on that screen).
+Items from phones on an older app version land in the first list (column default
+`default_shopping_list()`). Before `supabase-shopping-lists.sql` is run, the app shows one list.
 
 ## Adding a feature
 

@@ -23,6 +23,8 @@ function cache(key, val) {
 export const store = {
   recipes: cache('recipes') || [],
   shopping: cache('shopping') || [],
+  lists: cache('lists') || [],
+  listsReady: true, // false until supabase-shopping-lists.sql has been run
   meals: cache('meals') || [],
   mealsReady: true, // false until the calendar part of the database is set up
   chores: cache('chores') || [],
@@ -48,8 +50,8 @@ export async function signIn(email, password) {
 }
 export async function signOut() {
   await sb.auth.signOut();
-  store.recipes = []; store.shopping = []; store.meals = []; store.chores = [];
-  cache('recipes', []); cache('shopping', []); cache('meals', []); cache('chores', []);
+  store.recipes = []; store.shopping = []; store.meals = []; store.chores = []; store.lists = [];
+  cache('recipes', []); cache('shopping', []); cache('meals', []); cache('chores', []); cache('lists', []);
 }
 
 // ---- recipes ----------------------------------------------------------------
@@ -114,8 +116,32 @@ export async function fetchPage(url) {
   return check(await sb.rpc('fetch_recipe_page', { page_url: url }));
 }
 
-// ---- shopping list ------------------------------------------------------------
-function saveShop() { cache('shopping', store.shopping); emit('shopping'); }
+// ---- shopping lists -----------------------------------------------------------
+// Several lists (Grocery, Costco, ...) shown as tabs. Each item has a list, a store section
+// ('' = guessed from its words) and a position for drag-to-reorder. Until
+// supabase-shopping-lists.sql has been run, store.listsReady is false and there's one list.
+function saveShop() {
+  store.shopping.sort((a, b) => (a.position ?? 0) - (b.position ?? 0) || a.created_at.localeCompare(b.created_at));
+  cache('shopping', store.shopping);
+  emit('shopping');
+}
+function saveLists() {
+  store.lists.sort((a, b) => a.position - b.position || a.created_at.localeCompare(b.created_at));
+  cache('lists', store.lists);
+  emit('shopping');
+}
+
+export async function loadLists() {
+  const { data, error } = await sb.from('shopping_lists').select('*');
+  if (error) {
+    if (/shopping_lists/.test(error.message || '')) { store.listsReady = false; emit('shopping'); return []; }
+    throw new Error(error.message);
+  }
+  store.listsReady = true;
+  store.lists = data;
+  saveLists();
+  return store.lists;
+}
 
 export async function loadShopping() {
   store.shopping = check(await sb.from('shopping_items').select('*').order('created_at'));
@@ -123,17 +149,28 @@ export async function loadShopping() {
   return store.shopping;
 }
 
-export async function addShopping(items) {
-  const rows = check(await sb.from('shopping_items').insert(items).select());
-  store.shopping = [...store.shopping.filter((i) => !rows.some((r) => r.id === i.id)), ...rows];
+// items: [{ text, recipe_title? }]. listId is ignored until the lists exist in the database.
+export async function addShopping(items, listId) {
+  let rows = items;
+  if (store.listsReady && store.lists.length) {
+    const list = listId || store.lists[0].id;
+    const start = Date.now();
+    rows = items.map((it, i) => ({ ...it, list_id: list, position: start + i }));
+  }
+  const saved = check(await sb.from('shopping_items').insert(rows).select());
+  store.shopping = [...store.shopping.filter((i) => !saved.some((r) => r.id === i.id)), ...saved];
   saveShop();
 }
 
-export async function toggleShopping(id, checked) {
+async function updateItem(id, fields) {
   const item = store.shopping.find((i) => i.id === id);
-  if (item) { item.checked = checked; saveShop(); } // update the screen right away
-  check(await sb.from('shopping_items').update({ checked }).eq('id', id));
+  if (item) { Object.assign(item, fields); saveShop(); } // update the screen right away
+  check(await sb.from('shopping_items').update(fields).eq('id', id));
 }
+export const toggleShopping = (id, checked) => updateItem(id, { checked });
+export const moveShopping = (id, listId) => updateItem(id, { list_id: listId, position: Date.now() });
+export const setSection = (id, section) => updateItem(id, { section });
+export const reorderShopping = (id, position, section) => updateItem(id, section ? { position, section } : { position });
 
 export async function deleteShopping(id) {
   store.shopping = store.shopping.filter((i) => i.id !== id);
@@ -141,10 +178,35 @@ export async function deleteShopping(id) {
   check(await sb.from('shopping_items').delete().eq('id', id));
 }
 
-export async function clearChecked() {
-  store.shopping = store.shopping.filter((i) => !i.checked);
+// Clears ticked items from one list (or everything, before lists exist)
+export async function clearChecked(listId) {
+  const hit = (i) => i.checked && (!listId || i.list_id === listId);
+  store.shopping = store.shopping.filter((i) => !hit(i));
   saveShop();
-  check(await sb.from('shopping_items').delete().eq('checked', true));
+  let q = sb.from('shopping_items').delete().eq('checked', true);
+  if (listId) q = q.eq('list_id', listId);
+  check(await q);
+}
+
+export async function addList(name) {
+  const position = Math.max(-1, ...store.lists.map((l) => l.position)) + 1;
+  const row = check(await sb.from('shopping_lists').insert({ name, position }).select().single());
+  store.lists.push(row);
+  saveLists();
+  return row;
+}
+export async function renameList(id, name) {
+  const l = store.lists.find((x) => x.id === id);
+  if (l) { l.name = name; saveLists(); }
+  check(await sb.from('shopping_lists').update({ name }).eq('id', id));
+}
+// Deletes the list and everything on it
+export async function deleteList(id) {
+  store.lists = store.lists.filter((l) => l.id !== id);
+  store.shopping = store.shopping.filter((i) => i.list_id !== id);
+  saveLists();
+  saveShop();
+  check(await sb.from('shopping_lists').delete().eq('id', id));
 }
 
 // ---- meal plan (calendar) ------------------------------------------------------
@@ -278,10 +340,13 @@ export function startSync() {
   sb.channel('household-meals')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'meal_plan' }, () => reloadSoon('m', loadMeals))
     .subscribe();
+  sb.channel('household-lists')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'shopping_lists' }, () => reloadSoon('l', loadLists))
+    .subscribe();
   sb.channel('household-chores')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'chores' }, () => reloadSoon('c', loadChores))
     .subscribe();
 }
 export function refreshAll() {
-  return Promise.all([loadRecipes(), loadShopping(), loadMeals(), loadChores()]);
+  return Promise.all([loadRecipes(), loadShopping(), loadLists(), loadMeals(), loadChores()]);
 }

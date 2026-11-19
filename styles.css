@@ -213,6 +213,19 @@ label .hint { font-weight: 400; color: var(--muted); }
 .calbox h3 { margin: 0 0 10px; font-size: 17px; }
 .calbox p { margin: 8px 0 0; }
 
+/* Shopping lists */
+.listtabs { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.listtabs .chip { padding: 8px 14px; font-size: 15px; }
+.listtabs .chip .n { font-weight: 700; opacity: .8; margin-left: 2px; }
+.listtabs .chip.add { min-width: 40px; font-size: 18px; padding: 4px 12px; }
+.chips.wrap { flex-wrap: wrap; overflow: visible; }
+h3.sec { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 16px 4px 6px; }
+.secgroup:first-child h3.sec { margin-top: 4px; }
+.shop .more { min-height: 40px; width: 36px; padding: 0; background: transparent; color: var(--muted); font-size: 20px; flex: 0 0 auto; }
+.shop .drag { width: 34px; text-align: center; color: var(--muted); font-size: 18px; cursor: grab; touch-action: none; flex: 0 0 auto; padding: 12px 0; }
+.shop li.sortable-ghost { opacity: .35; }
+.shop li.sortable-chosen { background: var(--accent-soft); }
+
 /* Sheet (modal) */
 .sheet-bg { position: fixed; inset: 0; background: rgba(0, 0, 0, .35); z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
 .sheet {

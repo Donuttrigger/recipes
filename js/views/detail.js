@@ -1,8 +1,9 @@
 // One recipe: photo, servings scaling, ingredients, steps, add to shopping list.
 import { $, $$, esc, toast, sheet, foodEmoji } from '../lib/dom.js';
-import { getRecipe, saveRecipe, deleteRecipe, addShopping } from '../db.js';
+import { store, getRecipe, saveRecipe, deleteRecipe, addShopping } from '../db.js';
 import { scaleIngredient, formatQty } from '../lib/scale.js';
 import { pickMeal } from './plan.js';
+import { currentList, rememberList } from './shop.js';
 
 export const tab = 'home';
 const servingsFor = {}; // remembers chosen servings per recipe while the app is open
@@ -95,18 +96,31 @@ export function render(view, id) {
 
     $('#toshop', view)?.addEventListener('click', () => {
       const lines = r.ingredients.filter((l) => !isSection(l)).map((l) => scaleIngredient(l, factor));
+      const lists = store.listsReady ? store.lists : [];
+      let listId = currentList()?.id;
       const s = sheet(`
         <h2>Add to shopping list</h2>
+        ${lists.length > 1 ? `<div class="chips wrap" id="lpick">${lists.map((l) => `<button class="chip ${l.id === listId ? 'on' : ''}" data-list="${l.id}">${esc(l.name)}</button>`).join('')}</div>` : ''}
         <p class="small muted" style="margin-top:-6px">Untick anything you already have.</p>
         <ul class="picklist">${lines.map((l, i) => `<li><label><input type="checkbox" checked value="${i}"> ${esc(l)}</label></li>`).join('')}</ul>
         <div class="row"><button id="cancel">Cancel</button><button class="primary" id="go">Add items</button></div>`);
+      $('#lpick', s.el)?.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-list]');
+        if (!b) return;
+        listId = b.dataset.list;
+        $$('[data-list]', s.el).forEach((x) => x.classList.toggle('on', x === b));
+      });
       $('#cancel', s.el).onclick = s.close;
       $('#go', s.el).onclick = async () => {
         const picked = $$('input:checked', s.el).map((c) => ({ text: lines[+c.value], recipe_title: r.title }));
         s.close();
         if (!picked.length) return;
-        try { await addShopping(picked); toast(`Added ${picked.length} item${picked.length === 1 ? '' : 's'} to the list`); }
-        catch (e) { toast(e.message); }
+        try {
+          await addShopping(picked, listId);
+          if (listId) rememberList(listId);
+          const name = lists.length > 1 ? lists.find((l) => l.id === listId)?.name : null;
+          toast(`Added ${picked.length} item${picked.length === 1 ? '' : 's'} to ${name || 'the list'}`);
+        } catch (e) { toast(e.message); }
       };
     });
 
